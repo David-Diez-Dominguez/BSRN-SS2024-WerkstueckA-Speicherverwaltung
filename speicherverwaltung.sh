@@ -4,7 +4,7 @@ addProzessStatic() {
     pgroesse=$(echo "$1" | cut -d',' -f2 | tr -dc '0-9' )
     for ((i=1; i<=anzahlPartitonen; i++)); do
         for ((j=2; j<=2; j++)); do
-            if [[ -z "${matrix[$i,$j]}" && $platzgefunden -eq 0 && $pgroesse -le $partitionPotenz ]]; then
+            if [[ -z "${matrix[$i,$j]}" && $platzgefunden -eq 0 && $pgroesse -le $partitionsgroeseInpotenz ]]; then
                 matrix[$i,$j]=$1
                 platzgefunden=1
             fi
