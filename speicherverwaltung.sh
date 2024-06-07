@@ -1,10 +1,27 @@
 #!/bin/bash
 addProzessStatic() {
-    echo add
+    platzgefunden=0
+    pgroesse=$(echo "$1" | cut -d',' -f2 | tr -dc '0-9' )
+    for ((i=1; i<=anzahlPartitonen; i++)); do
+        for ((j=2; j<=2; j++)); do
+            if [[ -z "${matrix[$i,$j]}" && $platzgefunden -eq 0 && $pgroesse -le $partitionPotenz ]]; then
+                matrix[$i,$j]=$1
+                platzgefunden=1
+            fi
+        done
+    done
 }
 
 removeProzessStatic() {
-    echo remove
+    for ((i=1; i<=anzahlPartitonen; i++)); do
+        for ((j=2; j<=2; j++)); do
+            prozess="${matrix[$i,$j]}"
+            matrixProzess=$(echo "$prozess" | cut -d',' -f1 )
+            if [[ "$matrixProzess" == "$1" ]]; then
+                matrix[$i,$j]=""
+            fi
+        done
+    done
 }
 
 readFile() {
