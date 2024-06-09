@@ -1,5 +1,52 @@
 #!/bin/bash
-bestFit(){}
+bestFit(
+   start=0
+    ende=0
+    fitOptions=()
+    leerzaehler=0
+    for ((i=1; i<=anzahlPartitonen; i++)); do
+        for ((j=2; j<=2; j++)); do
+            if [[ -z "${matrix[$i,$j]}" ]]; then
+              ((leerzaehler++))
+            fi
+            if [[ $i -eq 128 || -n "${matrix[$i,$j]}" ]]; then
+              if [[ $leerzaehler -ge $1 ]]; then
+                ende=$((i))
+                start=$((i - leerzaehler + 1))
+              if [[ $i -lt 128 ]];then
+                ende=$((i - 1))
+                start=$((i - leerzaehler))
+              fi
+                fitOptions+=("$start","$ende")
+              fi
+                leerzaehler=0
+            fi
+        done
+    done
+
+    if [ ${#fitOptions[@]} -eq 0 ]; then
+        echo "No fit options found."
+        return
+    fi
+
+    start=0
+    ende=0   
+
+    for option in "${fitOptions[@]}"; do
+        anfangArray=$(echo "$option" | cut -d',' -f1)
+        endeArray=$(echo "$option" | cut -d',' -f2)
+        size=$((endeArray - anfangArray + 1))
+
+        if [[ $size -le $anzahlPartitonen ]]; then
+            start=$anfangArray
+            ende=$((start + $1 - 1))
+            anzahlPartitonen=$size
+        fi
+    done
+        
+     echo "$start $ende" 
+      
+){}
 
 firstNextFist(){
     startPunkt=1
