@@ -84,7 +84,7 @@ readFile() {
         line=$(echo "$line" | tr -d '\r')
         anweisung=$(echo "$line" | cut -d' ' -f1)
         prozess=$(echo "$line" | cut -d' ' -f2)
-        iif [[ "$anweisung" == 'add' && $speicherverwaltung == "static" ]]; then
+        if [[ "$anweisung" == 'add' && $speicherverwaltung == "static" ]]; then
             addProzessStatic "$prozess"
             elif [[ "$anweisung" == 'remove' ]]; then
             removeProzessStatic "$prozess"
@@ -120,7 +120,7 @@ calculateNextHigherPowerOfTwo() {
 }
 
 speicherverwaltung="dynamic"
-dynamicKonzept="next
+dynamicKonzept="next"
 matrixLaenge=""
 lastindex=1
 
