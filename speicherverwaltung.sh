@@ -112,6 +112,7 @@ addProzessStatic() {
             fi
             if [[ $pgroesse -gt $partitionsgroeseInpotenz ]]; then
                 message="$prozessName konnte nicht hinzugefügt werden. Der Prozess ist zu groß für die Patritionsgröße."
+                log "$message"
                 echo $message
                 break 3
             fi
@@ -133,12 +134,14 @@ removeProzessStatic() {
 
 checkIfProzessNameIsUnique() {
      prozessName=$(echo "$1" | cut -d',' -f1)
+    log "Überprüfe ob der Prozessname $prozessName eindeutig ist "
     for ((i=1; i<=matrixLaenge; i++)); do
         for ((j=2; j<=2; j++)); do
              prozessInMatrix="${matrix[$i,$j]}"
              prozessNameInMatrix=$(echo "$prozessInMatrix" | cut -d',' -f1)
             if [[ "$prozessName" == "$prozessNameInMatrix" ]]; then
              read -p "Der Prozessname $prozessName existiert bereits. Bitte gib einen neuen Prozessnamen ein: " neuerProzessName </dev/tty
+             log "Der Prozess mit dem namen $prozessName existiert bereits und wurde zu $neuerProzessName geändert"
              neuerName=$(checkIfProzessNameIsUnique "$neuerProzessName") # Überprüfe den neuen Namen
             echo "$neuerName"
             
@@ -146,11 +149,13 @@ checkIfProzessNameIsUnique() {
             fi
         done
     done
+    log "Der Prozessname $prozessName ist eindeutig."
     echo "$prozessName" # Wenn kein doppelter Name gefunden wurde, gib den ursprünglichen Namen zurück
 }
 
 readFile() {
     while IFS= read -r line || [[ -n $line ]]; do
+    log "$line"
         line=$(echo "$line" | tr -d '\r')
         anweisung=$(echo "$line" | cut -d' ' -f1)
         prozess=$(echo "$line" | cut -d' ' -f2)
@@ -159,12 +164,15 @@ readFile() {
         neuerName=$(checkIfProzessNameIsUnique "$prozess")
         prozess=$neuerName,$prozessgroese
             addProzessStatic "$prozess"
+            log "Der Prozess $neuerName wurde erfolgreich hinzugefügt"
          elif [[ "$anweisung" == 'remove' ]]; then
             removeProzessStatic "$prozess"
+            log "Der Prozess $neuerName wurde erfolgreich entfernt"
         fi
         if [[ "$anweisung" == 'add' && $speicherverwaltung == "dynamic" ]]; then
         neuerName=$(checkIfProzessNameIsUnique "$prozess")
         prozess=$neuerName,$prozessgroese
+            log "Der Prozess $neuerName wurde erfolgreich hinzugefügt"
             addProzessDynamic "$prozess"
         fi
     done < "$prozessdatei"
@@ -274,6 +282,15 @@ else
     exit 1
 fi
 
+if [ ! -f "$logdatei" ]; then
+  touch "$logdatei"
+  echo "Logdatei: $logdatei wurde erstellt."
+fi
+
+log() {
+  local logText="$1"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - $logText" >> "$logdatei"
+}
 
 #Als erstes wird vom Benutzer die Speicherplatzgröße, sowie die Größe der Partitionen eingelesen
 #Beide Werte werden auf die nächst höhere 2er Potenz gerundet
@@ -300,6 +317,15 @@ partitionsgroeseInpotenz=$(calculateNextHigherPowerOfTwo $partition)
 matrixLaenge=$(expr $speicherplatzInPotenz / $partitionsgroeseInpotenz)
 fi
 
+log "Die speicherverwaltung: $speicherverwaltung wurde mit einem $speicherplatzInPotenz MB großen Speicherplatz gestartet"
+if [[ "$speicherverwaltung" == "static" ]]; then
+log "Die einzelnen Partitionen sind $partitionsgroeseInpotenz MB groß. Somit gibt es $matrixLaenge gleich große Partitionen"
+fi
+if [[ "$speicherverwaltung" == "dynamic" ]]; then
+log "Das Konzept $konzept wurde ausgewählt"
+fi
+
+
 if [[ $speicherverwaltung == "dynamic" ]];then
     matrixLaenge=$speicherplatzInPotenz
 fi
@@ -316,7 +342,9 @@ for ((i=1; i<=matrixLaenge; i++)); do
 done
 
 #In dieser Methode wwerden die Prozesse über eine .txt Datei eingelesen und Prozesse erstellt bzw. terminiert
+log "Es werden die Prozesses aus der $prozessdatei gelesen"
 readFile
+log "--------------------------------------------------------------------"
 
 #Mit Hilfe einer for-Schelife wird die Matrix am Ende ausgegeben
 for ((i=1; i<=matrixLaenge; i++)); do
