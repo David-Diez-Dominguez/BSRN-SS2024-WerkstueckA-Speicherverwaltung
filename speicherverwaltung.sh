@@ -1,10 +1,10 @@
 #!/bin/bash
-bestFit(
-   start=0
+bestFit(){
+     start=0
     ende=0
     fitOptions=()
     leerzaehler=0
-    for ((i=1; i<=anzahlPartitonen; i++)); do
+    for ((i=1; i<=matrixLaenge; i++)); do
         for ((j=2; j<=2; j++)); do
             if [[ -z "${matrix[$i,$j]}" ]]; then
               ((leerzaehler++))
@@ -37,21 +37,20 @@ bestFit(
         endeArray=$(echo "$option" | cut -d',' -f2)
         size=$((endeArray - anfangArray + 1))
 
-        if [[ $size -le $anzahlPartitonen ]]; then
+        if [[ $size -le $matrixLaenge ]]; then
             start=$anfangArray
             ende=$((start + $1 - 1))
-            anzahlPartitonen=$size
+            matrixLaenge=$size
         fi
     done
         
      echo "$start $ende" 
-      
-){}
+}
 
 firstNextFist(){
     startPunkt=1
     prozessgroese=$1
-    if [ "$dynamicKonzept" == "next" ];then
+    if [ "$konzept" == "next" ];then
         startPunkt=$2
     fi
     freieStelleCounter=$1;
@@ -84,10 +83,10 @@ firstNextFist(){
 addProzessDynamic() {
     pgroesse=$(echo "$1" | cut -d',' -f2 | tr -dc '0-9' )
     prozessName=$(echo "$1" | cut -d',' -f1)
-    if [[ "$dynamicKonzept" == "first" || "$dynamicKonzept" == "next" ]]; then
+    if [[ "$konzept" == "first" || "$konzept" == "next" ]]; then
     startEnde=$(firstNextFist $pgroesse $lastindex)
     fi
-    if [[ "$dynamicKonzept" == "best" ]]; then
+    if [[ "$konzept" == "best" ]]; then
     startEnde=$(bestFit $pgroesse)
     fi
     read -r start ende <<< "$startEnde"
@@ -103,19 +102,25 @@ addProzessDynamic() {
 
 addProzessStatic() {
     platzgefunden=0
+    prozessName=$(echo "$1" | cut -d',' -f1)
     pgroesse=$(echo "$1" | cut -d',' -f2 | tr -dc '0-9' )
-    for ((i=1; i<=anzahlPartitonen; i++)); do
+    for ((i=1; i<=matrixLaenge; i++)); do
         for ((j=2; j<=2; j++)); do
             if [[ -z "${matrix[$i,$j]}" && $platzgefunden -eq 0 && $pgroesse -le $partitionsgroeseInpotenz ]]; then
                 matrix[$i,$j]=$1
                 platzgefunden=1
+            fi
+            if [[ $pgroesse -gt $partitionsgroeseInpotenz ]]; then
+                message="$prozessName konnte nicht hinzugefügt werden. Der Prozess ist zu groß für die Patritionsgröße."
+                echo $message
+                break 3
             fi
         done
     done
 }
 
 removeProzessStatic() {
-    for ((i=1; i<=anzahlPartitonen; i++)); do
+    for ((i=1; i<=matrixLaenge; i++)); do
         for ((j=2; j<=2; j++)); do
             prozess="${matrix[$i,$j]}"
             matrixProzess=$(echo "$prozess" | cut -d',' -f1 )
@@ -126,20 +131,43 @@ removeProzessStatic() {
     done
 }
 
+checkIfProzessNameIsUnique() {
+     prozessName=$(echo "$1" | cut -d',' -f1)
+    for ((i=1; i<=matrixLaenge; i++)); do
+        for ((j=2; j<=2; j++)); do
+             prozessInMatrix="${matrix[$i,$j]}"
+             prozessNameInMatrix=$(echo "$prozessInMatrix" | cut -d',' -f1)
+            if [[ "$prozessName" == "$prozessNameInMatrix" ]]; then
+             read -p "Der Prozessname $prozessName existiert bereits. Bitte gib einen neuen Prozessnamen ein: " neuerProzessName </dev/tty
+             neuerName=$(checkIfProzessNameIsUnique "$neuerProzessName") # Überprüfe den neuen Namen
+            echo "$neuerName"
+            
+                return # Funktion beenden und neuen Namen zurückgeben
+            fi
+        done
+    done
+    echo "$prozessName" # Wenn kein doppelter Name gefunden wurde, gib den ursprünglichen Namen zurück
+}
+
 readFile() {
     while IFS= read -r line || [[ -n $line ]]; do
         line=$(echo "$line" | tr -d '\r')
         anweisung=$(echo "$line" | cut -d' ' -f1)
         prozess=$(echo "$line" | cut -d' ' -f2)
+        prozessgroese=$(echo "$prozess" | cut -d',' -f2)
         if [[ "$anweisung" == 'add' && $speicherverwaltung == "static" ]]; then
+        neuerName=$(checkIfProzessNameIsUnique "$prozess")
+        prozess=$neuerName,$prozessgroese
             addProzessStatic "$prozess"
-            elif [[ "$anweisung" == 'remove' ]]; then
+         elif [[ "$anweisung" == 'remove' ]]; then
             removeProzessStatic "$prozess"
         fi
         if [[ "$anweisung" == 'add' && $speicherverwaltung == "dynamic" ]]; then
+        neuerName=$(checkIfProzessNameIsUnique "$prozess")
+        prozess=$neuerName,$prozessgroese
             addProzessDynamic "$prozess"
         fi
-    done < example.txt
+    done < "$prozessdatei"
 }
 
 calculateNextHigherPowerOfTwo() {
@@ -166,10 +194,86 @@ calculateNextHigherPowerOfTwo() {
     echo $potenz
 }
 
-speicherverwaltung="dynamic"
-dynamicKonzept="next"
+is_integer() {
+    local s="$1"
+    if [[ "$s" =~ ^-?[0-9]+$ ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+info() {
+    echo "Usage:"
+    echo "  simulator.sh -speicherverwaltung [static|dynamic|buddy] -prozessdatei <file> -logdatei <file>"
+    echo "  simulator.sh -speicherverwaltung dynamic -konzept <best|first|next> -prozessdatei <file> -logdatei <file>"
+    echo "Options:"
+    echo "  -speicherverwaltung   (static, dynamic, buddy)"
+    echo "  -konzept              Allocation strategy (best, first, next) [only for dynamic]"
+    echo "  -prozessdatei      Hier wird die Datei eingelesen, in der die Prozesse stehen, die gestartet pder beendet werden sollen."
+    echo "  -logdatei             "
+}
+
+speicherverwaltung=""
+konzept=""
+prozessdatei=""
+logdatei=""
+
 matrixLaenge=""
 lastindex=1
+
+
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    
+    case $key in
+        -speicherverwaltung)
+            speicherverwaltung="$2"
+            shift 2
+        ;;
+        -prozessdatei)
+            prozessdatei="$2"
+            shift 2
+        ;;
+        -logdatei)
+            logdatei="$2"
+            shift 2
+        ;;
+        -konzept)
+            konzept="$2"
+            shift 2
+        ;;
+        *)
+            echo "Unknown option: $1"
+            info
+            exit 1
+        ;;
+    esac
+done
+
+if [[ -z "$speicherverwaltung" || -z "$prozessdatei" || -z "$logdatei" ]]; then
+    echo "Error: Es fehlen einige Argumente."
+    info
+    exit 1
+fi
+
+if [[ "$speicherverwaltung" == "static" ]]; then
+    echo "Die statische Partitionierung wird gestartet."
+    elif [[ "$speicherverwaltung" == "dynamic" ]]; then
+    if [[ -z "$konzept" ]]; then
+        echo "Error: Es fehlt das -konzept Argument für die dynamische Partitionierung."
+        info
+        exit 1
+    fi
+    echo "Die dynamische Partitionierung wird mit dem Konzept: $konzept gestartet."
+    elif [[ "$speicherverwaltung" == "buddy" ]]; then
+    echo "Die Buddy-Speicherverwaltung wird gestartet"
+else
+    echo "Error: Es fehlt das Argument für die -speicherverwaltung x. Es muss zwichen static, dynamic, oder buddy gewählt werden."
+    info
+    exit 1
+fi
+
 
 #Als erstes wird vom Benutzer die Speicherplatzgröße, sowie die Größe der Partitionen eingelesen
 #Beide Werte werden auf die nächst höhere 2er Potenz gerundet
@@ -177,8 +281,18 @@ read -p "Geben Sie die Größe des Speicherplatzes ein: " speicherplatz
 
 speicherplatzInPotenz=$(calculateNextHigherPowerOfTwo $speicherplatz)
 
+if ! is_integer "$speicherplatz"; then
+    echo "Error: Speicherplatz muss eine ganze Zahl (Integer) sein."
+    exit 1
+fi
+
 if [[ "$speicherverwaltung" == "static" ]]; then
 read -p "Geben sie die Größe der einzelnen Partitionen ein: " partition
+
+if ! is_integer "$partition"; then
+    echo "Error: Die Partitionsgröße muss eine ganze Zahl (Integer) sein."
+    exit 1
+fi
 
 partitionsgroeseInpotenz=$(calculateNextHigherPowerOfTwo $partition)
 
@@ -187,7 +301,7 @@ matrixLaenge=$(expr $speicherplatzInPotenz / $partitionsgroeseInpotenz)
 fi
 
 if [[ $speicherverwaltung == "dynamic" ]];then
-    matrixLaenge=$potenzSpeicher
+    matrixLaenge=$speicherplatzInPotenz
 fi
 
 declare -A matrix
@@ -207,8 +321,7 @@ readFile
 #Mit Hilfe einer for-Schelife wird die Matrix am Ende ausgegeben
 for ((i=1; i<=matrixLaenge; i++)); do
     for ((j=1; j<=2; j++)); do
-        echo -n "${matrix[$i,$j]} "
+        echo -n "${matrix[$i,$j]}"
     done
     echo
 done
-
