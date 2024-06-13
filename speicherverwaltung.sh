@@ -98,6 +98,12 @@ addProzessDynamic() {
                 matrix[$i,$j]=$prozessName
         done
     done
+     if [[ $start -gt 0 ]]; then
+    message="Der Prozess $prozessName wurde erfolgreich hinzugefügt"
+            echo $message
+            log "$message"
+    fi
+
 }
 
 addProzessStatic() {
@@ -106,30 +112,49 @@ addProzessStatic() {
     pgroesse=$(echo "$1" | cut -d',' -f2 | tr -dc '0-9' )
     for ((i=1; i<=matrixLaenge; i++)); do
         for ((j=2; j<=2; j++)); do
-            if [[ -z "${matrix[$i,$j]}" && $platzgefunden -eq 0 && $pgroesse -le $partitionsgroeseInpotenz ]]; then
+            if [[ -z "${matrix[$i,$j]}" && $platzgefunden -eq 0 && $pgroesse -le $partition ]]; then
                 matrix[$i,$j]=$1
                 platzgefunden=1
+                 message="Der Prozess $prozessName wurde erfolgreich hinzugefügt"
+                echo $message
+                log $message
             fi
-            if [[ $pgroesse -gt $partitionsgroeseInpotenz ]]; then
-                message="$prozessName konnte nicht hinzugefügt werden. Der Prozess ist zu groß für die Patritionsgröße."
+            if [[ $pgroesse -gt $partition ]]; then
+                message="$prozessName konnte nicht hinzugefügt werden. Der Prozess mit der Größe $pgroesse ist zu groß für die Patritionsgröße ($partition)."
                 log "$message"
                 echo $message
-                break 3
+                return
             fi
         done
     done
+        if [[ $platzgefunden -eq 0 ]]; then
+               message="$prozessName konnte nicht hinzugefügt werden. Alle Partitionen sind bereits belegt."
+                log "$message"
+                echo $message
+        fi
 }
 
 removeProzessStatic() {
+    deleted=false
     for ((i=1; i<=matrixLaenge; i++)); do
         for ((j=2; j<=2; j++)); do
             prozess="${matrix[$i,$j]}"
             matrixProzess=$(echo "$prozess" | cut -d',' -f1 )
             if [[ "$matrixProzess" == "$1" ]]; then
                 matrix[$i,$j]=""
+                deleted=true
             fi
         done
     done
+    if [[ "$deleted" == false ]]; then
+        message="Prozess $1 wurde nicht gefunden."
+        echo $message
+        log "$message"
+        else
+        message="Prozess $1 wurde erfolgreich entfernt."
+        echo $message
+        log "$message"
+    fi
 }
 
 checkIfProzessNameIsUnique() {
@@ -153,6 +178,16 @@ checkIfProzessNameIsUnique() {
     echo "$prozessName" # Wenn kein doppelter Name gefunden wurde, gib den ursprünglichen Namen zurück
 }
 
+#Mit Hilfe einer for-Schelife wird die Matrix ausgegeben
+ausgabe(){
+for ((i=1; i<=matrixLaenge; i++)); do
+    for ((j=1; j<=2; j++)); do
+        echo -n "${matrix[$i,$j]}"
+    done
+    echo
+done
+}
+
 readFile() {
     while IFS= read -r line || [[ -n $line ]]; do
     log "$line"
@@ -164,17 +199,16 @@ readFile() {
         neuerName=$(checkIfProzessNameIsUnique "$prozess")
         prozess=$neuerName,$prozessgroese
             addProzessStatic "$prozess"
-            log "Der Prozess $neuerName wurde erfolgreich hinzugefügt"
          elif [[ "$anweisung" == 'remove' ]]; then
             removeProzessStatic "$prozess"
-            log "Der Prozess $neuerName wurde erfolgreich entfernt"
         fi
         if [[ "$anweisung" == 'add' && $speicherverwaltung == "dynamic" ]]; then
         neuerName=$(checkIfProzessNameIsUnique "$prozess")
         prozess=$neuerName,$prozessgroese
-            log "Der Prozess $neuerName wurde erfolgreich hinzugefügt"
             addProzessDynamic "$prozess"
         fi
+        ausgabe
+        echo
     done < "$prozessdatei"
 }
 
@@ -296,8 +330,6 @@ log() {
 #Beide Werte werden auf die nächst höhere 2er Potenz gerundet
 read -p "Geben Sie die Größe des Speicherplatzes ein: " speicherplatz
 
-speicherplatzInPotenz=$(calculateNextHigherPowerOfTwo $speicherplatz)
-
 if ! is_integer "$speicherplatz"; then
     echo "Error: Speicherplatz muss eine ganze Zahl (Integer) sein."
     exit 1
@@ -311,15 +343,14 @@ if ! is_integer "$partition"; then
     exit 1
 fi
 
-partitionsgroeseInpotenz=$(calculateNextHigherPowerOfTwo $partition)
-
-#Die Anzahl der Partitionen wir hier ausgrechnet, indem wir den gesamten Speicher (in Zweierpotenz) durch die partitionsgröße (in Zweierpotenz) teilen
-matrixLaenge=$(expr $speicherplatzInPotenz / $partitionsgroeseInpotenz)
+#Die Anzahl der Partitionen wir hier ausgrechnet, indem wir den gesamten Speicher durch die Partitionsgröße teilen
+matrixLaenge=$(($speicherplatz / $partition))
+echo 
 fi
 
-log "Die speicherverwaltung: $speicherverwaltung wurde mit einem $speicherplatzInPotenz MB großen Speicherplatz gestartet"
+log "Die speicherverwaltung: $speicherverwaltung wurde mit einem $speicherplatz MB großen Speicherplatz gestartet"
 if [[ "$speicherverwaltung" == "static" ]]; then
-log "Die einzelnen Partitionen sind $partitionsgroeseInpotenz MB groß. Somit gibt es $matrixLaenge gleich große Partitionen"
+log "Die einzelnen Partitionen sind $partition MB groß. Somit gibt es $matrixLaenge gleich große Partitionen"
 fi
 if [[ "$speicherverwaltung" == "dynamic" ]]; then
 log "Das Konzept $konzept wurde ausgewählt"
@@ -327,7 +358,7 @@ fi
 
 
 if [[ $speicherverwaltung == "dynamic" ]];then
-    matrixLaenge=$speicherplatzInPotenz
+    matrixLaenge=$speicherplatz
 fi
 
 declare -A matrix
@@ -345,11 +376,3 @@ done
 log "Es werden die Prozesses aus der $prozessdatei gelesen"
 readFile
 log "--------------------------------------------------------------------"
-
-#Mit Hilfe einer for-Schelife wird die Matrix am Ende ausgegeben
-for ((i=1; i<=matrixLaenge; i++)); do
-    for ((j=1; j<=2; j++)); do
-        echo -n "${matrix[$i,$j]}"
-    done
-    echo
-done
