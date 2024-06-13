@@ -57,15 +57,14 @@ firstNextFist(){
     start=0
     ende=0
     for ((i=$startPunkt; i<=matrixLaenge; i++)); do
-        for ((j=2; j<=2; j++)); do
-        if [[ -z "${matrix[$i,$j]}"  && $freieStelleCounter -gt 0 ]]; then
+        if [[ -z "${matrix[$i,2]}"  && $freieStelleCounter -gt 0 ]]; then
            ((freieStelleCounter -= 1))
           ende=$i
         fi
-        if [[ -n "${matrix[$i,$j]}"  ]]; then
-        freieStelleCounter=$1
+        if [[ -n "${matrix[$i,2]}"  ]]; then
+            freieStelleCounter=$1
         fi
-          if [[ $freieStelleCounter -eq 0  ]]; then 
+        if [[ $freieStelleCounter -eq 0  ]]; then 
             start=$((ende - prozessgroese + 1))
             echo "$start $ende"
             break 3
@@ -76,7 +75,6 @@ firstNextFist(){
             freieStelleCounter=$1
             i=$startPunkt
         fi
-        done
     done
 }
 
@@ -90,9 +88,10 @@ addProzessDynamic() {
     startEnde=$(bestFit $pgroesse)
     fi
     read -r start ende <<< "$startEnde"
-    # echo "Start: $start"
-    # echo "Ende: $ende"
     lastindex=$((ende + 1))
+    if [[ $lastindex  -gt $letzeIndexFragmentierung ]];then
+    letzeIndexFragmentierung=$lastindex
+    fi
     for ((i=start; i<=ende; i++)); do
         for ((j=2; j<=2; j++)); do
                 matrix[$i,$j]=$prozessName
@@ -115,12 +114,12 @@ addProzessStatic() {
             if [[ -z "${matrix[$i,$j]}" && $platzgefunden -eq 0 && $pgroesse -le $partition ]]; then
                 matrix[$i,$j]=$1
                 platzgefunden=1
-                 message="Der Prozess $prozessName wurde erfolgreich hinzugefügt"
+                message="Der Prozess $prozessName wurde erfolgreich hinzugefügt"
                 echo $message
                 log $message
             fi
             if [[ $pgroesse -gt $partition ]]; then
-                message="$prozessName konnte nicht hinzugefügt werden. Der Prozess mit der Größe $pgroesse ist zu groß für die Patritionsgröße ($partition)."
+                message="$prozessName konnte nicht hinzugefügt werden. Der Prozess mit der Größe $pgroesse MB ist zu groß für die Patritionsgröße ($partition MB)."
                 log "$message"
                 echo $message
                 return
@@ -256,6 +255,24 @@ info() {
     echo "  -logdatei             "
 }
 
+internefragmentierungBerechnen(){
+    for ((i=1; i<=matrixLaenge; i++)); do
+            prozess="${matrix[$i,2]}"
+            prozessgroese=$(echo "$prozess" | cut -d',' -f2)
+            internefragmentierung=$(( internefragmentierung + partition - prozessgroese))
+        done
+}
+
+externeFragmentierungBerechnen(){
+     for ((i=1; i<=matrixLaenge; i++)); do
+         if [[ -z "${matrix[$i,2]}" ]]; then
+            ((externeFragmentierung++))
+         fi
+        done
+        keineFragmentierung=$((speicherplatz - letzeIndexFragmentierung + 1))
+        externeFragmentierung=$((externeFragmentierung - keineFragmentierung))
+}
+
 speicherverwaltung=""
 konzept=""
 prozessdatei=""
@@ -263,6 +280,11 @@ logdatei=""
 
 matrixLaenge=""
 lastindex=1
+
+internefragmentierung=0
+externeFragmentierung=0
+
+letzeIndexFragmentierung=0
 
 
 while [[ $# -gt 0 ]]; do
@@ -330,16 +352,16 @@ log() {
 #Beide Werte werden auf die nächst höhere 2er Potenz gerundet
 read -p "Geben Sie die Größe des Speicherplatzes ein: " speicherplatz
 
-if ! is_integer "$speicherplatz"; then
-    echo "Error: Speicherplatz muss eine ganze Zahl (Integer) sein."
+if ! is_integer "$speicherplatz" || [[ $speicherplatz -lt 0 ]]; then
+    echo "Error: Speicherplatz muss eine ganze Zahl (Integer) größer 0 sein."
     exit 1
 fi
 
 if [[ "$speicherverwaltung" == "static" ]]; then
 read -p "Geben sie die Größe der einzelnen Partitionen ein: " partition
 
-if ! is_integer "$partition"; then
-    echo "Error: Die Partitionsgröße muss eine ganze Zahl (Integer) sein."
+if ! is_integer "$partition" || [[ $partition -lt 0 ]]; then
+    echo "Error: Die Partitionsgröße muss eine ganze Zahl (Integer) größer 0 sein."
     exit 1
 fi
 
@@ -375,4 +397,21 @@ done
 #In dieser Methode wwerden die Prozesse über eine .txt Datei eingelesen und Prozesse erstellt bzw. terminiert
 log "Es werden die Prozesses aus der $prozessdatei gelesen"
 readFile
+
+if [[ $speicherverwaltung == "static" ]];then
+internefragmentierungBerechnen
+message="Die interne Fragmentierung beträgt $internefragmentierung MB"
+echo $message
+log "$message"
+
+fi
+
+if [[ $speicherverwaltung == "dynamic" ]];then
+externeFragmentierungBerechnen
+message="Die externe Fragmentierung beträgt $externeFragmentierung MB"
+echo $message
+log "$message"
+fi
+
+
 log "--------------------------------------------------------------------"
