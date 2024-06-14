@@ -187,6 +187,217 @@ for ((i=1; i<=matrixLaenge; i++)); do
 done
 }
 
+teileBuddy(){
+    oldBuddy=$1
+    parentContainerIndex=$(echo "$oldBuddy" | cut -d',' -f2)
+    buddyGroesse=$(echo "$oldBuddy" | cut -d',' -f3)
+    
+    oldBuddyIndex=$(getIndex $oldBuddy)
+    unsetBuddy $oldBuddyIndex
+    
+    neueGroesse=$((buddyGroesse / 2))
+    ((buddyIndex++))
+    ((buddyPairIndex++))
+    buddies+=("$buddyIndex,$buddyPairIndex,$neueGroesse,0,$parentContainerIndex")
+    ((buddyIndex++))
+    buddies+=("$buddyIndex,$buddyPairIndex,$neueGroesse,0,$parentContainerIndex")
+    
+    parents+=($buddyPairIndex,$parentContainerIndex)
+    #teiel buddy rekursive aufrufgen bis wir ein budy geteilt haben der sp groß ist wie wir ihn bruachen
+    #wenn getteilt dann erst suceh freienbuddy aufrufen
+    
+    sucheFreienBuddy $2
+}
+
+unsetParent(){
+    for parent in "${!parents[@]}"; do
+        removeParentIndex=$(echo "$parent" | cut -d',' -f1)
+        if [ "$removeParentIndex" == "$1" ]; then
+            unset "parents[$parent]"
+            parents=("${parents[@]}")
+        fi
+    done
+}
+
+getOldParentByParentIndex(){
+    for p in "${parents[@]}"; do
+        parentIndex=$(echo "$p" | cut -d',' -f1)
+        if [ "$parentIndex" == "$1" ]; then
+            oldParentIndex=$(echo "$p" | cut -d',' -f2)
+        fi
+    done
+    echo $oldParentIndex
+    
+}
+
+buddiesZusammenfügen(){
+    for buddy in "${buddies[@]}"; do
+        buddyId=$(echo "$buddy" | cut -d',' -f1)
+        buddyPairIndex=$(echo "$buddy" | cut -d',' -f2)
+        buddygroesse=$(echo "$buddy" | cut -d',' -f3)
+        buddygroesse=$((buddygroesse * 2))
+        belegt=$(echo "$buddy" | cut -d',' -f4)
+        parentIndex=$(echo "$buddy" | cut -d',' -f5)
+        if [ $belegt -eq 0 ];then
+            for comparedBuddy in "${buddies[@]}"; do
+                comparedBuddyIndex=$(echo "$comparedBuddy" | cut -d',' -f1)
+                comparedBuddyPairIndex=$(echo "$comparedBuddy" | cut -d',' -f2)
+                comparedBelegt=$(echo "$comparedBuddy" | cut -d',' -f4)
+                if [[ $comparedBelegt -eq 0 && $buddyId -ne $comparedBuddyIndex
+                    && $buddyPairIndex -eq $comparedBuddyPairIndex ]];then
+                    
+                    oldparent=$(getOldParentByParentIndex $parentIndex)
+                    
+                    unsetParent $buddyPairIndex                    
+                    
+                    buddies+=("$buddyIndex,$parentIndex,$buddygroesse,0,$oldparent")
+                    firstBuddyArrayIndex=$(getIndex $buddy)
+                    unsetBuddy $firstBuddyArrayIndex
+                    secondBuddyArrayIndex=$(getIndex $comparedBuddy)
+                    unsetBuddy $secondBuddyArrayIndex
+                    
+                    buddiesZusammenfügen
+                    break 2
+                    
+                fi
+            done
+        fi
+    done
+}
+
+getArrayIndexByyBuddyId(){
+    buddyId=$1
+    index=0
+    counter=-1
+    for bud in "${buddies[@]}"; do
+        ((counter++))
+        buddyIndex=$(echo "$bud" | cut -d',' -f1)
+        if [[ $buddyIndex -eq $buddyId ]]; then
+            index=$counter
+            break 2
+        fi
+    done
+    echo $counter
+}
+
+removeProzessBuddy(){
+    prozessName=$1
+    buddyId=""
+    for proz in "${prozesse[@]}"; do
+        prozessNameInArray=$(echo "$proz" | cut -d',' -f2)
+        if [[ "$prozessName" == "$prozessNameInArray" ]]; then
+            prozessId=$(echo "$proz" | cut -d',' -f1)
+            buddyId=$(echo "$proz" | cut -d',' -f4)
+            unset 'prozesse[prozessId]'
+            prozesse=("${prozesse[@]}")
+            #gefuned=true wenn fasle geh untenin else
+            # else            
+            # message="Prozess $prozessName konnte nicht gelöscht werden, da dieser Prozess nicht existiert."
+            # echo $message
+            # log "$message" 
+        fi
+    done
+    
+    arrayId=$(getArrayIndexByyBuddyId $buddyId)
+    zugewiesenerBuddy="${buddies[arrayId]}"
+    
+    
+    buddyPairIndex=$(echo "$zugewiesenerBuddy" | cut -d',' -f2)
+    groesse=$(echo "$zugewiesenerBuddy" | cut -d',' -f3)
+    belegt=0
+    parentContainerIndex=$(echo "$zugewiesenerBuddy" | cut -d',' -f5)
+    buddies[arrayId]="$buddyId,$buddyPairIndex,$groesse,$belegt,$parentContainerIndex"
+    
+    buddiesZusammenfügen
+    
+}
+
+addProzess(){
+    zugewiesenerBuddy=$1
+    zugewiesenerBuddyIndex=$(getIndex $zugewiesenerBuddy)
+    buddyIndex=$(echo "$zugewiesenerBuddy" | cut -d',' -f1)
+    buddyPairIndex=$(echo "$zugewiesenerBuddy" | cut -d',' -f2)
+    neueGroesse=$(echo "$zugewiesenerBuddy" | cut -d',' -f3)
+    belegt=1
+    parentContainerIndex=$(echo "$zugewiesenerBuddy" | cut -d',' -f5)
+    
+    buddies[zugewiesenerBuddyIndex]="$buddyIndex,$buddyPairIndex,$neueGroesse,$belegt,$parentContainerIndex"
+    prozesse+=("$prozessId,$prozess,$buddyIndex")
+    ((prozessId++))
+}
+
+unsetBuddy(){
+    i=$1
+    unset 'buddies[i]'
+    buddies=("${buddies[@]}")
+}
+getIndex(){
+    index=0
+    for i in "${!buddies[@]}"; do
+        if [[ "${buddies[i]}" == "$1" ]]; then
+            index=$i
+        fi
+    done
+    echo $index
+}
+
+sucheFreienBuddy(){
+    prozessgroesse=$1
+    anfangsPotenz=$(calculateNextHigherPowerOfTwo $prozessgroesse)
+    potenz=0
+    buddyfound=0
+    gefudeneBuddy=""
+    if [ $prozessgroesse -le $speicherplatz ]; then
+        potenz=$(calculateNextHigherPowerOfTwo $prozessgroesse)
+        while [[ $potenz -le $speicherplatz && $buddyfound -eq 0 ]]; do
+            for buddy in "${buddies[@]}"; do
+                buddyGroesse=$(echo "$buddy" | cut -d',' -f3)
+                buddyBelegt=$(echo "$buddy" | cut -d',' -f4)
+                if [[ $buddyGroesse -eq $potenz && $buddyBelegt -eq 0 ]]; then
+                    buddyfound=1
+                    gefudeneBuddy=$buddy
+                    break 2
+                fi
+            done
+            # Falls kein passender Buddy gefunden wurde, erhöhe die Potenz um das nächste Potenz-von-2
+            potenz=$((potenz * 2))
+        done
+        if [ $anfangsPotenz -eq $potenz ]; then
+            addProzess $gefudeneBuddy
+        else
+            teileBuddy $gefudeneBuddy $prozessgroesse
+        fi
+    fi
+}
+getProzessnameByBuddyId(){
+    buddyId=$1
+    for prozess in "${prozesse[@]}"; do
+        buddyIdinProzess=$(echo "$prozess" | cut -d',' -f4 )  
+        if [[ $buddyId -eq $buddyIdinProzess ]]; then
+        prozessName=$(echo "$prozess" | cut -d',' -f2 )  
+        echo $prozessName
+        fi
+    done 
+}
+
+ausgabeBuddy(){
+    printf "%-15s %-20s %-17s %-15s\n" "Buddy Index" "Buddy Pair Index" "Prozessgröße" "Prozessname"
+    printf "%-15s %-20s %-15s %-15s\n" "-----------" "---------------" "------------" "-----------"
+    for buddy in "${buddies[@]}"; do
+    buddyIndex=$(echo "$buddy" | cut -d',' -f1 )
+    buddyPairIndex=$(echo "$buddy" | cut -d',' -f2 )
+    prozessgroesse=$(echo "$buddy" | cut -d',' -f3 )
+    belegt=$(echo "$buddy" | cut -d',' -f4 )
+    prozessName=""
+    
+    if [[ $belegt -eq 1 ]]; then
+     buddyId=$(echo "$buddy" | cut -d',' -f1 )
+    prozessName=$(getProzessnameByBuddyId $buddyId)
+    fi
+       printf "%-15s %-20s %-15s %-15s\n" "$buddyIndex" "$buddyPairIndex" "$prozessgroesse" "$prozessName"
+    done
+}
+
 readFile() {
     while IFS= read -r line || [[ -n $line ]]; do
     log "$line"
@@ -198,15 +409,30 @@ readFile() {
         neuerName=$(checkIfProzessNameIsUnique "$prozess")
         prozess=$neuerName,$prozessgroese
             addProzessStatic "$prozess"
-         elif [[ "$anweisung" == 'remove' ]]; then
+            ausgabe
+        fi
+        if [[ "$anweisung" == 'remove' && $speicherverwaltung != "buddy" ]]; then
             removeProzessStatic "$prozess"
+            ausgabe
         fi
         if [[ "$anweisung" == 'add' && $speicherverwaltung == "dynamic" ]]; then
         neuerName=$(checkIfProzessNameIsUnique "$prozess")
         prozess=$neuerName,$prozessgroese
             addProzessDynamic "$prozess"
+            ausgabe
         fi
-        ausgabe
+        if [[ "$anweisung" == 'add' && $speicherverwaltung == "buddy" ]]; then
+        echo $line
+        sucheFreienBuddy $prozessgroese
+        ausgabeBuddy
+        echo
+        fi
+        if [[ "$anweisung" == 'remove' && $speicherverwaltung == "buddy" ]]; then
+        #muss auf name statt id angepasst werden
+        echo $line
+        removeProzessBuddy "$prozess"
+        ausgabeBuddy
+        fi
         echo
     done < "$prozessdatei"
 }
@@ -273,6 +499,17 @@ externeFragmentierungBerechnen(){
         externeFragmentierung=$((externeFragmentierung - keineFragmentierung))
 }
 
+buddySimulation(){
+log "Es werden die Prozesses aus der $prozessdatei gelesen"
+readFile
+exit
+}
+
+log() {
+  local logText="$1"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - $logText" >> "$logdatei"
+}
+
 speicherverwaltung=""
 konzept=""
 prozessdatei=""
@@ -286,6 +523,18 @@ externeFragmentierung=0
 
 letzeIndexFragmentierung=0
 
+#buddy
+buddyIndex=0
+buddyPairIndex=0
+belegt=0
+
+prozessId=0
+
+buddies=()
+prozesse=()
+parents=()
+
+parents+=(0,0)
 
 while [[ $# -gt 0 ]]; do
     key="$1"
@@ -332,6 +581,7 @@ if [[ "$speicherverwaltung" == "static" ]]; then
     echo "Die dynamische Partitionierung wird mit dem Konzept: $konzept gestartet."
     elif [[ "$speicherverwaltung" == "buddy" ]]; then
     echo "Die Buddy-Speicherverwaltung wird gestartet"
+    echo
 else
     echo "Error: Es fehlt das Argument für die -speicherverwaltung x. Es muss zwichen static, dynamic, oder buddy gewählt werden."
     info
@@ -343,11 +593,6 @@ if [ ! -f "$logdatei" ]; then
   echo "Logdatei: $logdatei wurde erstellt."
 fi
 
-log() {
-  local logText="$1"
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - $logText" >> "$logdatei"
-}
-
 #Als erstes wird vom Benutzer die Speicherplatzgröße, sowie die Größe der Partitionen eingelesen
 #Beide Werte werden auf die nächst höhere 2er Potenz gerundet
 read -p "Geben Sie die Größe des Speicherplatzes ein: " speicherplatz
@@ -355,6 +600,13 @@ read -p "Geben Sie die Größe des Speicherplatzes ein: " speicherplatz
 if ! is_integer "$speicherplatz" || [[ $speicherplatz -lt 0 ]]; then
     echo "Error: Speicherplatz muss eine ganze Zahl (Integer) größer 0 sein."
     exit 1
+fi
+
+if [[ "$speicherverwaltung" == "buddy" ]]; then
+speicherplatz=$(calculateNextHigherPowerOfTwo $speicherplatz)
+buddies+=("$buddyIndex,$buddyPairIndex,$speicherplatz,$belegt,$buddyIndex")
+buddySimulation
+exit
 fi
 
 if [[ "$speicherverwaltung" == "static" ]]; then
@@ -412,6 +664,5 @@ message="Die externe Fragmentierung beträgt $externeFragmentierung MB"
 echo $message
 log "$message"
 fi
-
 
 log "--------------------------------------------------------------------"
