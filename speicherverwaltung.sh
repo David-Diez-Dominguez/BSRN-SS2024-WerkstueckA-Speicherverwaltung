@@ -234,29 +234,40 @@ for ((i=1; i<=matrixLaenge; i++)); do
 done
 }
 
+#In dieser Methode wird der zu teilende Buddy geteilt
 teileBuddy(){
+    #als erstes speichern wir den Buddy der übergeben wurde und cutten den parentcontainerindex, sowie die buddygröße
     oldBuddy=$1
     parentContainerIndex=$(echo "$oldBuddy" | cut -d',' -f2)
     buddygroesse=$(echo "$oldBuddy" | cut -d',' -f3)
     
+    #anschließend ermitteln wir mithilfe der getIndex Methode den INdex an dem der übergebende Buddy gespeichert ist
     oldBuddyIndex=$(getIndex $oldBuddy)
+    #dieser wird dann aus dem Buddies Array entfernt
     unsetBuddy $oldBuddyIndex
     
+    #Im Anschluss ermitteln wir die neue Größe der gesplatenen Buddies...
     neueGroesse=$((buddygroesse / 2))
+    #...zählen den buddyindex jewils 1 mal für jeden neun Buddy
+    #Der buddyPairIndex wird nur 1 mla hochgezählt, weil die buddies die zusammengehören somit bestimmt werden können
     ((buddyIndex++))
     ((buddyPairIndex++))
     buddies+=("$buddyIndex,$buddyPairIndex,$neueGroesse,0,$parentContainerIndex")
     ((buddyIndex++))
     buddies+=("$buddyIndex,$buddyPairIndex,$neueGroesse,0,$parentContainerIndex")
     
+    #Am Ende mappen wir den neuen buddyPairIndex mit dem dazugehörigen parentContainerIndex um beim späteren Zusammenfügen die Buddys ihreen alten buddyPairIndex erhalten.
     parents+=($buddyPairIndex,$parentContainerIndex)
     
+    #Nach dem Teilen wir wieder überprüft ob es jetzt einen freien Buuddy gibt der groß genug für den Prozess ist
     sucheFreienBuddy $2
 }
 
+#Nachdem ein Buddy wieder zusammengefügt wurde muss die Refferenz von zusammngefügten buddyPairIndex zu seinem parentContainerIndex gelöscht werden
 unsetParent(){
     for parent in "${!parents[@]}"; do
         removeParentIndex=$(echo "$parent" | cut -d',' -f1)
+        #Wenn der übergebende BuddyPairIndex des gespaltenen Buddys im Array gefunden wird, dann soller entfernt werden
         if [ "$removeParentIndex" == "$1" ]; then
             unset "parents[$parent]"
             parents=("${parents[@]}")
@@ -264,6 +275,7 @@ unsetParent(){
     done
 }
 
+#Hier wird der alte parentContainerIndex vom wieder zusaammengefügten Parent gesucht  
 getOldParentByParentIndex(){
     for p in "${parents[@]}"; do
         parentIndex=$(echo "$p" | cut -d',' -f1)
@@ -275,7 +287,9 @@ getOldParentByParentIndex(){
     
 }
 
+#Sind 2 Buddies der sleben gr0e und mit dem selben buddyPairIndex nicht belegt, sow werden diese wieder zum ursprüglichen Parent zusammengefügt
 buddiesZusammenfügen(){
+    #Wird durchlaufen den Buddies Array 2 mal um die Buddies innerhalb des Arrays zu vergleicehn
     for buddy in "${buddies[@]}"; do
         buddyId=$(echo "$buddy" | cut -d',' -f1)
         buddyPairIndex=$(echo "$buddy" | cut -d',' -f2)
@@ -288,19 +302,25 @@ buddiesZusammenfügen(){
                 comparedBuddyIndex=$(echo "$comparedBuddy" | cut -d',' -f1)
                 comparedBuddyPairIndex=$(echo "$comparedBuddy" | cut -d',' -f2)
                 comparedBelegt=$(echo "$comparedBuddy" | cut -d',' -f4)
+                #Wenn beide Buddies des selben Pairs frei sind und es sich dabei nicht 2 mla unm den selben Budyy handelt, werden sie wieder zusammengeführ  
                 if [[ $comparedBelegt -eq 0 && $buddyId -ne $comparedBuddyIndex
                     && $buddyPairIndex -eq $comparedBuddyPairIndex ]];then
                     
+                    #Dabei sucht man den ParentIndex vom parent
                     oldparent=$(getOldParentByParentIndex $parentIndex)
                     
+                    #Anschließende löscht man cie alte Refferenz vom zusammngefügten buddyPairIndex zu seinem parentContainerIndex 
                     unsetParent $buddyPairIndex                    
                     
+                    #Es wird zunächst der zusammengeführte Buddy wieder dem Array hinzugefügt...
                     buddies+=("$buddyIndex,$parentIndex,$buddygroesse,0,$oldparent")
                     firstBuddyArrayIndex=$(getIndex $buddy)
+                    #...und die gespaltenent buddies die zusammengeführt wurden, entfernt 
                     unsetBuddy $firstBuddyArrayIndex
                     secondBuddyArrayIndex=$(getIndex $comparedBuddy)
                     unsetBuddy $secondBuddyArrayIndex
 
+                    #Gibt den zusammnegeführent Buddy zurück
                     arrayId=$(getArrayIndexByyBuddyId $buddyIndex)
                     newOldBuddy=${buddies[$arrayId]}
                     
@@ -314,6 +334,7 @@ buddiesZusammenfügen(){
     done
 }
 
+#Gibt den Array Index für die BuddyId zurück
 getArrayIndexByyBuddyId(){
     buddyId=$1
     index=0
@@ -329,18 +350,22 @@ getArrayIndexByyBuddyId(){
     echo $counter
 }
 
+#Mithilfe des Prozessnamen wird der Prozess gelöscht und frei Buddies werden wirder zusammengefügt
 removeProzessBuddy(){
     prozessName=$1
     buddyId=""
     gefunden=0
     for proz in "${prozesse[@]}"; do
         prozessNameInArray=$(echo "$proz" | cut -d',' -f2)
+        #Wenn ein Prozess im Prozesses Array gefunden wurde,...
         if [[ "$prozessName" == "$prozessNameInArray" ]]; then
             prozessId=$(echo "$proz" | cut -d',' -f1)
             buddyId=$(echo "$proz" | cut -d',' -f4)
+            #... wird dieser aus dem Array entfernt
             unset 'prozesse[prozessId]'
             prozesse=("${prozesse[@]}")
             gefunden=1
+            #Fall kein Prozess gefunden wurde, wird eine Fehlermeldugn angezeigt
              if [[ $gefunden -eq 0 ]]; then        
                     message="Prozess $prozessName konnte nicht gelöscht werden, da dieser Prozess nicht existiert."
                     echo $message
@@ -349,6 +374,7 @@ removeProzessBuddy(){
         fi
     done
     
+    #Im vorletzen Schritt muss belegt wieder auf 0 gesetzt werden
     arrayId=$(getArrayIndexByyBuddyId $buddyId)
     zugewiesenerBuddy="${buddies[arrayId]}"
     
@@ -359,12 +385,16 @@ removeProzessBuddy(){
     parentContainerIndex=$(echo "$zugewiesenerBuddy" | cut -d',' -f5)
     buddies[arrayId]="$buddyId,$buddyPairIndex,$groesse,$belegt,$parentContainerIndex"
     
+    #Zuletzt wird überpr+ft, ob buddies wieder zusammengefügt werden können
     buddiesZusammenfügen
     
 }
 
+#Fügt einem neune Prozess zu
 addProzess(){
+    #Der zuvor gefundene Budyy wird hier entgegengenommen...
     zugewiesenerBuddy=$1
+    #...und seine Index aus dem Arrray gelesen
     zugewiesenerBuddyIndex=$(getIndex $zugewiesenerBuddy)
     buddyIndex=$(echo "$zugewiesenerBuddy" | cut -d',' -f1)
     buddyPairIndex=$(echo "$zugewiesenerBuddy" | cut -d',' -f2)
@@ -372,18 +402,25 @@ addProzess(){
     belegt=1
     parentContainerIndex=$(echo "$zugewiesenerBuddy" | cut -d',' -f5)
     
+    #Zunächst wird der Buddy auf belegt gesetzt
     buddies[zugewiesenerBuddyIndex]="$buddyIndex,$buddyPairIndex,$neueGroesse,$belegt,$parentContainerIndex"
+    #und ein neuer Prozess, mit der Refferenz auf seinen dazugehörigen Buddy, hinzugefügt
     prozesse+=("$prozessId,$prozess,$buddyIndex")
     ((prozessId++))
-    log "Prozess $prozess wurde dem Buddy mit der ID $buddyIndex erfolgreich zugewisen"
+    message="Prozess $prozess wurde dem Buddy mit der ID $buddyIndex erfolgreich zugewisen"
+    echo $message
+    echo
+    log "$message"
 }
 
+#Entfernt den Buddy and der Stelle i und bereinigt das Array (Neuordnung der Indizes)
 unsetBuddy(){
     i=$1
     unset 'buddies[i]'
     buddies=("${buddies[@]}")
 }
 
+#gibt den Array Index für das Gesamte Buddy element zurück
 getIndex(){
     index=0
     for i in "${!buddies[@]}"; do
@@ -395,18 +432,24 @@ getIndex(){
 }
 
 sucheFreienBuddy(){
+    #Es wird zunächst die Größe des Prozesses übergeben
     prozessgroesse=$1
     anfangsPotenz=$(calculateNextHigherPowerOfTwo $prozessgroesse)
     potenz=0
     buddyfound=0
     gefudeneBuddy=""
+    #Wenn die prozessgroesse <= Speicherplatz und prozessgroesse > 0 ist...
     if [ $prozessgroesse -le $speicherplatz ] && [ $prozessgroesse -gt 0 ]; then
+    #... dann wird die nächsthöhere zweierpotenz der Prozessgröße berechnet
         potenz=$(calculateNextHigherPowerOfTwo $prozessgroesse)
+        #Solange kein Buddy im Buddies Array gefunden wurde, der...
         while [[ $potenz -le $speicherplatz && $buddyfound -eq 0 ]]; do
             for buddy in "${buddies[@]}"; do
                 buddygroesse=$(echo "$buddy" | cut -d',' -f3)
                 buddyBelegt=$(echo "$buddy" | cut -d',' -f4)
+                #...frei ist und die richitge Größe hat
                 if [[ $buddygroesse -eq $potenz && $buddyBelegt -eq 0 ]]; then
+                #wurde ein richitger Buddy gefunden wird buddyfound aud 1 gesetzt...
                     buddyfound=1
                     gefudeneBuddy=$buddy
                     break 2
@@ -416,8 +459,10 @@ sucheFreienBuddy(){
             potenz=$((potenz * 2))
         done
         if [ $anfangsPotenz -eq $potenz ]; then
+        #und der Prozess zum gefundenen Buddy hinzugefügt
             addProzess $gefudeneBuddy
         else
+        #Gibt es im gesamten Array kein einzelnen Buddy der frei ist bzw. die richtige Größe für den Prozess hat, so wird verucht eine Buddy zu teilen
             teileBuddy $gefudeneBuddy $prozessgroesse
         fi
     else
@@ -426,6 +471,8 @@ sucheFreienBuddy(){
         log $message
     fi
 }
+
+#sucht in Prozesses Array nach dem Prozessnamen mithikfe der gegebenen BuddyID
 getProzessnameByBuddyId(){
     buddyId=$1
     for prozess in "${prozesse[@]}"; do
@@ -437,6 +484,7 @@ getProzessnameByBuddyId(){
     done 
 }
 
+#Zeigt nach jedem Schritt (add/remove) an welceh Buddies es gibt, und wenn ja, auch die dazugehörigne Prozessnamen
 ausgabeBuddy(){
     printf "%-15s %-20s %-17s %-15s\n" "Buddy Index" "Buddypaar Index" "Prozessgröße" "Prozessname"
     printf "%-15s %-20s %-15s %-15s\n" "-----------" "---------------" "------------" "-----------"
@@ -796,6 +844,5 @@ message="Die externe Fragmentierung beträgt $externeFragmentierung MB"
 echo $message
 log "$message"
 fi
-
 
 log "------------------------------"
