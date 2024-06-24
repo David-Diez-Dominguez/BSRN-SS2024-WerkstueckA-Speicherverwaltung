@@ -203,8 +203,6 @@ teileBuddy(){
     buddies+=("$buddyIndex,$buddyPairIndex,$neueGroesse,0,$parentContainerIndex")
     
     parents+=($buddyPairIndex,$parentContainerIndex)
-    #teiel buddy rekursive aufrufgen bis wir ein budy geteilt haben der sp groß ist wie wir ihn bruachen
-    #wenn getteilt dann erst suceh freienbuddy aufrufen
     
     sucheFreienBuddy $2
 }
@@ -255,9 +253,13 @@ buddiesZusammenfügen(){
                     unsetBuddy $firstBuddyArrayIndex
                     secondBuddyArrayIndex=$(getIndex $comparedBuddy)
                     unsetBuddy $secondBuddyArrayIndex
+
+                    arrayId=$(getArrayIndexByyBuddyId $buddyIndex)
+                    newOldBuddy=${buddies[$arrayId]}
                     
+                    log "$buddy wurde mit $comparedBuddy zu $newOldBuddy zusammengelegt"
                     buddiesZusammenfügen
-                    break 2
+                    break 4
                     
                 fi
             done
@@ -283,6 +285,7 @@ getArrayIndexByyBuddyId(){
 removeProzessBuddy(){
     prozessName=$1
     buddyId=""
+    gefunden=0
     for proz in "${prozesse[@]}"; do
         prozessNameInArray=$(echo "$proz" | cut -d',' -f2)
         if [[ "$prozessName" == "$prozessNameInArray" ]]; then
@@ -290,11 +293,12 @@ removeProzessBuddy(){
             buddyId=$(echo "$proz" | cut -d',' -f4)
             unset 'prozesse[prozessId]'
             prozesse=("${prozesse[@]}")
-            #gefuned=true wenn fasle geh untenin else
-            # else            
-            # message="Prozess $prozessName konnte nicht gelöscht werden, da dieser Prozess nicht existiert."
-            # echo $message
-            # log "$message" 
+            gefunden=1
+             if [[ $gefunden -eq 0 ]]; then        
+                    message="Prozess $prozessName konnte nicht gelöscht werden, da dieser Prozess nicht existiert."
+                    echo $message
+                    log "$message" 
+             fi
         fi
     done
     
@@ -324,6 +328,7 @@ addProzess(){
     buddies[zugewiesenerBuddyIndex]="$buddyIndex,$buddyPairIndex,$neueGroesse,$belegt,$parentContainerIndex"
     prozesse+=("$prozessId,$prozess,$buddyIndex")
     ((prozessId++))
+    log "Prozess $prozess wurde dem Buddy mit der ID $buddyIndex erfolgreich zugewisen"
 }
 
 unsetBuddy(){
@@ -331,6 +336,7 @@ unsetBuddy(){
     unset 'buddies[i]'
     buddies=("${buddies[@]}")
 }
+
 getIndex(){
     index=0
     for i in "${!buddies[@]}"; do
