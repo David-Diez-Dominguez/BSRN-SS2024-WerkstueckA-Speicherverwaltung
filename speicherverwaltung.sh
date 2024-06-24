@@ -439,7 +439,7 @@ sucheFreienBuddy(){
     buddyfound=0
     gefudeneBuddy=""
     #Wenn die prozessgroesse <= Speicherplatz und prozessgroesse > 0 ist...
-    if [ $prozessgroesse -le $speicherplatz ] && [ $prozessgroesse -gt 0 ]; then
+    if [[ $prozessgroesse -le $speicherplatz  &&  $prozessgroesse -gt 0 ]]; then
     #... dann wird die nächsthöhere zweierpotenz der Prozessgröße berechnet
         potenz=$(calculateNextHigherPowerOfTwo $prozessgroesse)
         #Solange kein Buddy im Buddies Array gefunden wurde, der...
