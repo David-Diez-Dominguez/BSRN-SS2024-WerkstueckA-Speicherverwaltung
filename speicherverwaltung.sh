@@ -49,7 +49,7 @@ bestFit(){
 
 firstNextFist(){
     startPunkt=1
-    prozessgroese=$1
+    prozessgroesse=$1
     if [ "$konzept" == "next" ];then
         startPunkt=$2
     fi
@@ -65,7 +65,7 @@ firstNextFist(){
             freieStelleCounter=$1
         fi
         if [[ $freieStelleCounter -eq 0  ]]; then 
-            start=$((ende - prozessgroese + 1))
+            start=$((ende - prozessgroesse + 1))
             echo "$start $ende"
             break 3
         fi
@@ -190,12 +190,12 @@ done
 teileBuddy(){
     oldBuddy=$1
     parentContainerIndex=$(echo "$oldBuddy" | cut -d',' -f2)
-    buddyGroesse=$(echo "$oldBuddy" | cut -d',' -f3)
+    buddygroesse=$(echo "$oldBuddy" | cut -d',' -f3)
     
     oldBuddyIndex=$(getIndex $oldBuddy)
     unsetBuddy $oldBuddyIndex
     
-    neueGroesse=$((buddyGroesse / 2))
+    neueGroesse=$((buddygroesse / 2))
     ((buddyIndex++))
     ((buddyPairIndex++))
     buddies+=("$buddyIndex,$buddyPairIndex,$neueGroesse,0,$parentContainerIndex")
@@ -347,13 +347,13 @@ sucheFreienBuddy(){
     potenz=0
     buddyfound=0
     gefudeneBuddy=""
-    if [ $prozessgroesse -le $speicherplatz ]; then
+    if [ $prozessgroesse -le $speicherplatz ] && [ $prozessgroesse -gt 0 ]; then
         potenz=$(calculateNextHigherPowerOfTwo $prozessgroesse)
         while [[ $potenz -le $speicherplatz && $buddyfound -eq 0 ]]; do
             for buddy in "${buddies[@]}"; do
-                buddyGroesse=$(echo "$buddy" | cut -d',' -f3)
+                buddygroesse=$(echo "$buddy" | cut -d',' -f3)
                 buddyBelegt=$(echo "$buddy" | cut -d',' -f4)
-                if [[ $buddyGroesse -eq $potenz && $buddyBelegt -eq 0 ]]; then
+                if [[ $buddygroesse -eq $potenz && $buddyBelegt -eq 0 ]]; then
                     buddyfound=1
                     gefudeneBuddy=$buddy
                     break 2
@@ -367,6 +367,10 @@ sucheFreienBuddy(){
         else
             teileBuddy $gefudeneBuddy $prozessgroesse
         fi
+    else
+        message="Prozess konnte nicht hinzugefügt werden. Prozessgröße muss kleiner gleich der Speicherplatzgröße und größer 0 sein"
+        echo $message
+        log $message
     fi
 }
 getProzessnameByBuddyId(){
@@ -381,7 +385,7 @@ getProzessnameByBuddyId(){
 }
 
 ausgabeBuddy(){
-    printf "%-15s %-20s %-17s %-15s\n" "Buddy Index" "Buddy Pair Index" "Prozessgröße" "Prozessname"
+    printf "%-15s %-20s %-17s %-15s\n" "Buddy Index" "Buddypaar Index" "Prozessgröße" "Prozessname"
     printf "%-15s %-20s %-15s %-15s\n" "-----------" "---------------" "------------" "-----------"
     for buddy in "${buddies[@]}"; do
     buddyIndex=$(echo "$buddy" | cut -d',' -f1 )
@@ -404,10 +408,10 @@ readFile() {
         line=$(echo "$line" | tr -d '\r')
         anweisung=$(echo "$line" | cut -d' ' -f1)
         prozess=$(echo "$line" | cut -d' ' -f2)
-        prozessgroese=$(echo "$prozess" | cut -d',' -f2)
+        prozessgroesse=$(echo "$prozess" | cut -d',' -f2)
         if [[ "$anweisung" == 'add' && $speicherverwaltung == "static" ]]; then
         neuerName=$(checkIfProzessNameIsUnique "$prozess")
-        prozess=$neuerName,$prozessgroese
+        prozess=$neuerName,$prozessgroesse
             addProzessStatic "$prozess"
             ausgabe
         fi
@@ -417,13 +421,13 @@ readFile() {
         fi
         if [[ "$anweisung" == 'add' && $speicherverwaltung == "dynamic" ]]; then
         neuerName=$(checkIfProzessNameIsUnique "$prozess")
-        prozess=$neuerName,$prozessgroese
+        prozess=$neuerName,$prozessgroesse
             addProzessDynamic "$prozess"
             ausgabe
         fi
         if [[ "$anweisung" == 'add' && $speicherverwaltung == "buddy" ]]; then
         echo $line
-        sucheFreienBuddy $prozessgroese
+        sucheFreienBuddy $prozessgroesse
         ausgabeBuddy
         echo
         fi
@@ -484,8 +488,8 @@ info() {
 internefragmentierungBerechnen(){
     for ((i=1; i<=matrixLaenge; i++)); do
             prozess="${matrix[$i,2]}"
-            prozessgroese=$(echo "$prozess" | cut -d',' -f2)
-            internefragmentierung=$(( internefragmentierung + partition - prozessgroese))
+            prozessgroesse=$(echo "$prozess" | cut -d',' -f2)
+            internefragmentierung=$(( internefragmentierung + partition - prozessgroesse))
         done
 }
 
@@ -499,9 +503,34 @@ externeFragmentierungBerechnen(){
         externeFragmentierung=$((externeFragmentierung - keineFragmentierung))
 }
 
+interenFragmentierungBuddy(){
+for prozess in "${prozesse[@]}"; do
+     prozessgroesse=$(echo "$prozess" | cut -d',' -f3 )  
+     prozessgroessePotenz=$(calculateNextHigherPowerOfTwo $prozessgroesse)
+     internefragmentierung=$((internefragmentierung + prozessgroessePotenz - prozessgroesse)) 
+    done 
+}
+ 
+
+externeFragmentierungBuddy(){
+    for buddy in "${buddies[@]}"; do
+    belegt=$(echo "$buddy" | cut -d',' -f4 )
+    
+    if [[ $belegt -eq 0 ]]; then
+        buddygroesse=$(echo "$buddy" | cut -d',' -f3 )
+        externeFragmentierung=$((externeFragmentierung + buddygroesse))
+    fi
+    done
+}
+
 buddySimulation(){
 log "Es werden die Prozesses aus der $prozessdatei gelesen"
 readFile
+interenFragmentierungBuddy
+externeFragmentierungBuddy
+message="Die interne Fragmentierung beträgt $internefragmentierung MB und die externe Fragmentierung bezrägt $externeFragmentierung"
+echo $message
+log "$message"
 exit
 }
 
@@ -664,5 +693,6 @@ message="Die externe Fragmentierung beträgt $externeFragmentierung MB"
 echo $message
 log "$message"
 fi
+
 
 log "--------------------------------------------------------------------"
