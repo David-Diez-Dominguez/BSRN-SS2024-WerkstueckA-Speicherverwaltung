@@ -63,7 +63,7 @@ bestFit(){
 }
 
 #Die First und Next Fit Methode sucht den passende Start und Ende um einen Prozess hinzuzufügen
-firstNextFist(){
+firstNextFit(){
     #Bei First Fit starten wir immer ab 1, also ab dem Anfang vom Array
     startPunkt=1
     prozessgroesse=$1
@@ -110,7 +110,7 @@ addProzessDynamic() {
     prozessName=$(echo "$1" | cut -d',' -f1)
     #Je nach Konzeptarte rufen wir die dazugehörige Methode auf
     if [[ "$konzept" == "first" || "$konzept" == "next" ]]; then
-    startEnde=$(firstNextFist $pgroesse $lastindex)
+    startEnde=$(firstNextFit $pgroesse $lastindex)
     fi
     if [[ "$konzept" == "best" ]]; then
     startEnde=$(bestFit $pgroesse)
@@ -124,11 +124,9 @@ addProzessDynamic() {
     if [[ $lastindex  -gt $letzeIndexFragmentierung ]];then
     letzeIndexFragmentierung=$lastindex
     fi
-    #hier werden die Prozess in die Matrix hinzugefügt
+    #Hier werden die Prozess in die Matrix hinzugefügt
     for ((i=start; i<=ende; i++)); do
-        for ((j=2; j<=2; j++)); do
-                matrix[$i,$j]=$prozessName
-        done
+                matrix[$i,2]=$prozessName
     done
      if [[ $start -gt 0 ]]; then
     message="Der Prozess $prozessName wurde erfolgreich hinzugefügt"
@@ -455,14 +453,16 @@ sucheFreienBuddy(){
                     break 2
                 fi
             done
-            # Falls kein passender Buddy gefunden wurde, erhöhe die Potenz um das nächste Potenz-von-2
+            # Falls kein passender Buddy gefunden wurde, 
+            #wird die Potenz um die nächste Potenz-von-2 erhöht
             potenz=$((potenz * 2))
         done
         if [ $anfangsPotenz -eq $potenz ]; then
         #und der Prozess zum gefundenen Buddy hinzugefügt
             addProzess $gefudeneBuddy
         else
-        #Gibt es im gesamten Array kein einzelnen Buddy der frei ist bzw. die richtige Größe für den Prozess hat, so wird verucht eine Buddy zu teilen
+        #Gibt es im gesamten Array kein einzelnen Buddy der frei ist bzw. die
+        #richtige Größe für den Prozess hat,so wird verucht eine Buddy zu teilen
             teileBuddy $gefudeneBuddy $prozessgroesse
         fi
     else
@@ -592,7 +592,7 @@ info() {
     echo "  -speicherverwaltung   (static, dynamic, buddy)"
     echo "  -konzept              Allocation strategy (best, first, next) [only for dynamic]"
     echo "  -prozessdatei      Hier wird die Datei eingelesen, in der die Prozesse stehen, die gestartet pder beendet werden sollen."
-    echo "  -logdatei             "
+    echo "  -logdatei          In dieser Datei werden alle wichtigen Schritte beim Aausführen der Simulation gespeichert.  "
 }
 
 #Interne Fragmentierung tritt bei der statischen Partitionierung auf
