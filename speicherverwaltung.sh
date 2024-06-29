@@ -478,28 +478,31 @@ getProzessnameByBuddyId(){
     for prozess in "${prozesse[@]}"; do
         buddyIdinProzess=$(echo "$prozess" | cut -d',' -f4 )  
         if [[ $buddyId -eq $buddyIdinProzess ]]; then
-        prozessName=$(echo "$prozess" | cut -d',' -f2 )  
-        echo $prozessName
+        prozessName=$(echo "$prozess" | cut -d',' -f2 ) 
+        prozessgroesse=$(echo "$prozess" | cut -d',' -f3 )  
+        echo $prozessName $prozessgroesse
         fi
     done 
 }
 
 #Zeigt nach jedem Schritt (add/remove) an welceh Buddies es gibt, und wenn ja, auch die dazugehörigne Prozessnamen
 ausgabeBuddy(){
-    printf "%-15s %-20s %-17s %-15s\n" "Buddy Index" "Buddypaar Index" "Prozessgröße" "Prozessname"
-    printf "%-15s %-20s %-15s %-15s\n" "-----------" "---------------" "------------" "-----------"
+    printf "%-15s %-20s %-17s %-17s %-15s\n" "Buddy Index" "Buddypaar Index" "Buddygröße" "Prozessname" "Prozessgröße"
+    printf "%-15s %-20s %-15s %-17s %-15s\n" "-----------" "---------------" "------------" "-----------" "------------"
     for buddy in "${buddies[@]}"; do
     buddyIndex=$(echo "$buddy" | cut -d',' -f1 )
     buddyPairIndex=$(echo "$buddy" | cut -d',' -f2 )
-    prozessgroesse=$(echo "$buddy" | cut -d',' -f3 )
+    buddygroesse=$(echo "$buddy" | cut -d',' -f3 )
     belegt=$(echo "$buddy" | cut -d',' -f4 )
     prozessName=""
+    prozessgroesse=""
     
     if [[ $belegt -eq 1 ]]; then
-     buddyId=$(echo "$buddy" | cut -d',' -f1 )
-    prozessName=$(getProzessnameByBuddyId $buddyId)
+        buddyId=$(echo "$buddy" | cut -d',' -f1 )
+        prozess=$(getProzessnameByBuddyId $buddyId)     
+        read -r prozessName prozessgroesse <<< "$prozess"
     fi
-       printf "%-15s %-20s %-15s %-15s\n" "$buddyIndex" "$buddyPairIndex" "$prozessgroesse" "$prozessName"
+        printf "%-15s %-20s %-15s %-17s %-15s\n" "$buddyIndex" "$buddyPairIndex" "$buddygroesse" "$prozessName" "$prozessgroesse"
     done
 }
 
@@ -654,6 +657,7 @@ externeFragmentierungBuddy
 message="Die interne Fragmentierung beträgt $internefragmentierung MB und die externe Fragmentierung bezrägt $externeFragmentierung"
 echo $message
 log "$message"
+log "---------------------------------------"
 exit
 }
 
@@ -845,4 +849,4 @@ echo $message
 log "$message"
 fi
 
-log "------------------------------"
+log "---------------------------------------"
