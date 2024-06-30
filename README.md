@@ -1,13 +1,13 @@
 # BSRN-SS2024-WerkstueckA-Speicherverwaltung
 
 Vor dem Starten muss sichergestellt werden, ob bc installiert ist.
-Dazu muss der Befehl sudo apt-get install bc ausgeführ werden.
+Dazu muss der Befehl sudo apt-get install bc ausgeführt werden.
 
 Um die Simulation zu starten muss dem Argument Speicherverwaltung, eines der nachfolgenden Optionen übergeben werden.
 Entsprechend steht unten exemplarisch ein Befehle für jede Option zu Verfügung.
 
-Wenn dynamic als Speicherverwaltung gewählt wurde, muss beachtet werden, dass das zusätliche Argument Konzept angegebne werden muss,
-wo zwischen first, next und best unterschieden werdenn kann.
+Wenn dynamic als Speicherverwaltung gewählt wurde, muss beachtet werden, dass das zusätzliche Argument Konzept angegeben werden muss,
+wo zwischen first, next und best unterschieden werden kann.
 
 
 -static 
