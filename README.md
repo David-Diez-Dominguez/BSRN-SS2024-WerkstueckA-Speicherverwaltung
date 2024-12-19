@@ -19,3 +19,5 @@ wo zwischen first, next und best unterschieden werden kann.
 -buddy 
 ./simulation.sh -speicherverwaltung buddy -prozessdatei input.txt -logdatei logfile.txt
 
+Punkte 59/60
+
